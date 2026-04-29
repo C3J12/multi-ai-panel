@@ -1,0 +1,16 @@
+{
+  "name": "ai-panel",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+  "dev": "concurrently \"node server/index.js > server/server.log 2> server/server_error.log\" \"npm --prefix client run dev\""
+},
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}

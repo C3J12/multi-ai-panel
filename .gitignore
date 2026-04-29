@@ -1,0 +1,20 @@
+# 依赖包
+node_modules/
+
+# 环境变量（包含 API Key，绝不能上传）
+.env
+
+# 后端日志
+server/server.log
+server/server_error.log
+
+# 操作系统文件
+.DS_Store
+Thumbs.db
+
+# 前端构建产物
+client/dist/
+
+# 编辑器配置
+.vscode/
+.idea/
