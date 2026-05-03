@@ -40,6 +40,16 @@ function initializeDatabase() {
       }
     }
   }
+
+  // 数据库迁移：为已存在的 conversations 表添加 systemPrompt 列
+  try {
+    db.exec("ALTER TABLE conversations ADD COLUMN systemPrompt TEXT DEFAULT NULL");
+  } catch (err) {
+    // 如果列已存在，忽略错误
+    if (!err.message.includes('duplicate column')) {
+      console.error('数据库迁移错误:', err);
+    }
+  }
 }
 
 // ==================== 对话相关操作 ====================
@@ -50,7 +60,7 @@ function initializeDatabase() {
 function getConversations() {
   const db = getDatabase();
   const stmt = db.prepare(`
-    SELECT id, title, createdAt, updatedAt 
+    SELECT id, title, createdAt, updatedAt, systemPrompt 
     FROM conversations 
     ORDER BY updatedAt DESC
   `);
@@ -63,7 +73,7 @@ function getConversations() {
 function getConversation(conversationId) {
   const db = getDatabase();
   const stmt = db.prepare(`
-    SELECT id, title, createdAt, updatedAt 
+    SELECT id, title, createdAt, updatedAt, systemPrompt 
     FROM conversations 
     WHERE id = ?
   `);
@@ -73,15 +83,15 @@ function getConversation(conversationId) {
 /**
  * 创建新对话
  */
-function createConversation(id, title = '未命名对话') {
+function createConversation(id, title = '未命名对话', systemPrompt = null) {
   const db = getDatabase();
   const now = new Date().toISOString();
   const stmt = db.prepare(`
-    INSERT INTO conversations (id, title, createdAt, updatedAt)
-    VALUES (?, ?, ?, ?)
+    INSERT INTO conversations (id, title, createdAt, updatedAt, systemPrompt)
+    VALUES (?, ?, ?, ?, ?)
   `);
-  stmt.run(id, title, now, now);
-  return { id, title, createdAt: now, updatedAt: now };
+  stmt.run(id, title, now, now, systemPrompt);
+  return { id, title, createdAt: now, updatedAt: now, systemPrompt };
 }
 
 /**
@@ -105,6 +115,20 @@ function updateConversationTitle(conversationId, title) {
     WHERE id = ?
   `);
   stmt.run(title, now, conversationId);
+}
+
+/**
+ * 更新对话的 System Prompt
+ */
+function updateConversationSystemPrompt(conversationId, systemPrompt) {
+  const db = getDatabase();
+  const now = new Date().toISOString();
+  const stmt = db.prepare(`
+    UPDATE conversations 
+    SET systemPrompt = ?, updatedAt = ? 
+    WHERE id = ?
+  `);
+  stmt.run(systemPrompt, now, conversationId);
 }
 
 /**
@@ -212,6 +236,7 @@ module.exports = {
   createConversation,
   deleteConversation,
   updateConversationTitle,
+  updateConversationSystemPrompt,
   updateConversationTime,
   getMessages,
   getRecentMessages,

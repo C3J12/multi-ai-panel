@@ -14,19 +14,19 @@ export function Sidebar() {
 
   const questionList = useMemo(() => {
     const list = [];
-    let lastUser = null;
+    let currentQuestion = null;
 
     currentMessages?.forEach(msg => {
       if (msg.role === 'user') {
-        lastUser = {
+        currentQuestion = {
           id: msg.id,
           content: msg.content,
           timestamp: msg.timestamp,
-          targetAnswerIds: []
+          answerCount: 0
         };
-        list.push(lastUser);
-      } else if (msg.role === 'assistant' && lastUser) {
-        lastUser.targetAnswerIds.push(`answer-${msg.id}`);
+        list.push(currentQuestion);
+      } else if (msg.role === 'assistant' && currentQuestion) {
+        currentQuestion.answerCount += 1;
       }
     });
 
@@ -158,11 +158,8 @@ export function Sidebar() {
                       <button
                         key={question.id}
                         onClick={() => {
-                          const firstTargetId = question.targetAnswerIds && question.targetAnswerIds[0];
-                          if (firstTargetId) {
-                            const target = document.getElementById(firstTargetId);
-                            target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                          }
+                          const target = document.getElementById(`question-${question.id}`);
+                          target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
                         }}
                         className="w-full text-left rounded-xl border border-gray-200 px-3 py-2 bg-slate-50 hover:bg-slate-100 transition"
                       >
@@ -171,7 +168,7 @@ export function Sidebar() {
                         </p>
                         <p className="text-xs text-gray-500 mt-1">
                           {new Date(question.timestamp).toLocaleTimeString('zh-CN')}
-                          {question.targetAnswerIds.length > 0 ? ` · ${question.targetAnswerIds.length} 个回答` : ' · 无匹配回答'}
+                          {question.answerCount > 0 ? ` · ${question.answerCount} 个回答` : ' · 无匹配回答'}
                         </p>
                       </button>
                     ))}

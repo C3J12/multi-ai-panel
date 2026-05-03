@@ -7,7 +7,8 @@ export function ChatProvider({ children }) {
   const STORAGE_KEYS = {
     selectedModels: 'ai-panel-selected-models',
     currentConversationId: 'ai-panel-current-conversation-id',
-    conversations: 'ai-panel-conversations-cache'
+    conversations: 'ai-panel-conversations-cache',
+    defaultSystemPrompt: 'ai-panel-default-system-prompt'
   };
 
   const loadStoredSelectedModels = () => {
@@ -35,6 +36,15 @@ export function ChatProvider({ children }) {
     }
   };
 
+  const loadStoredDefaultSystemPrompt = () => {
+    if (typeof window === 'undefined') return '';
+    try {
+      return window.localStorage.getItem(STORAGE_KEYS.defaultSystemPrompt) || '';
+    } catch {
+      return '';
+    }
+  };
+
   const persistSelectedModels = (models) => {
     if (typeof window === 'undefined') return;
     window.localStorage.setItem(STORAGE_KEYS.selectedModels, JSON.stringify(models));
@@ -58,6 +68,19 @@ export function ChatProvider({ children }) {
     }
   };
 
+  const persistDefaultSystemPrompt = (prompt) => {
+    if (typeof window === 'undefined') return;
+    try {
+      if (prompt) {
+        window.localStorage.setItem(STORAGE_KEYS.defaultSystemPrompt, prompt);
+      } else {
+        window.localStorage.removeItem(STORAGE_KEYS.defaultSystemPrompt);
+      }
+    } catch {
+      // ignore storage errors
+    }
+  };
+
   const [conversations, setConversations] = useState(loadStoredConversations() || []);
   const [currentConversationId, setCurrentConversationId] = useState(loadStoredConversationId());
   const [currentMessages, setCurrentMessages] = useState([]);
@@ -65,6 +88,8 @@ export function ChatProvider({ children }) {
   const [selectedModels, setSelectedModels] = useState(loadStoredSelectedModels);
   const [error, setError] = useState(null);
   const [modelErrors, setModelErrors] = useState({}); // 记录各模型的错误
+  const [defaultSystemPrompt, setDefaultSystemPrompt] = useState(loadStoredDefaultSystemPrompt);
+  const [currentSystemPrompt, setCurrentSystemPrompt] = useState('');
 
   const API_BASE = 'http://localhost:4000/api';
 
@@ -79,6 +104,11 @@ export function ChatProvider({ children }) {
       const data = await res.json();
       if (data.success) {
         setCurrentMessages(data.messages);
+        if (data.conversation && data.conversation.systemPrompt) {
+          setCurrentSystemPrompt(data.conversation.systemPrompt);
+        } else {
+          setCurrentSystemPrompt('');
+        }
       }
     } catch (err) {
       console.error('加载消息失败:', err);
@@ -128,12 +158,13 @@ export function ChatProvider({ children }) {
   /**
    * 创建新对话
    */
-  const createConversation = useCallback(async (title = '新对话') => {
+  const createConversation = useCallback(async (title = '新对话', systemPrompt = null) => {
     try {
+      const prompt = systemPrompt !== null ? systemPrompt : defaultSystemPrompt;
       const res = await fetch(`${API_BASE}/conversations`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title })
+        body: JSON.stringify({ title, systemPrompt: prompt || undefined })
       });
       const data = await res.json();
       if (data.success) {
@@ -146,6 +177,7 @@ export function ChatProvider({ children }) {
         setCurrentConversationId(newConv.id);
         persistCurrentConversationId(newConv.id);
         setCurrentMessages([]);
+        setCurrentSystemPrompt(prompt || '');
         setModelErrors({});
         return newConv;
       }
@@ -153,7 +185,7 @@ export function ChatProvider({ children }) {
       console.error('创建对话失败:', err);
       setError('创建对话失败');
     }
-  }, []);
+  }, [defaultSystemPrompt]);
 
   /**
    * 删除对话
@@ -197,8 +229,15 @@ export function ChatProvider({ children }) {
     setCurrentConversationId(convId);
     persistCurrentConversationId(convId);
     setModelErrors({});
+    // 从本地缓存中查找该对话的 systemPrompt
+    const conv = conversations.find(c => c.id === convId);
+    if (conv && conv.systemPrompt) {
+      setCurrentSystemPrompt(conv.systemPrompt);
+    } else {
+      setCurrentSystemPrompt('');
+    }
     await loadMessages(convId);
-  }, [loadMessages]);
+  }, [loadMessages, conversations]);
 
   /**
    * 更新对话标题
@@ -362,6 +401,14 @@ export function ChatProvider({ children }) {
     persistSelectedModels(models);
   }, []);
 
+  /**
+   * 更新默认 System Prompt
+   */
+  const updateDefaultSystemPrompt = useCallback((prompt) => {
+    setDefaultSystemPrompt(prompt);
+    persistDefaultSystemPrompt(prompt);
+  }, []);
+
   // 提供值
   const value = {
     // 状态
@@ -372,6 +419,8 @@ export function ChatProvider({ children }) {
     selectedModels,
     error,
     modelErrors,
+    defaultSystemPrompt,
+    currentSystemPrompt,
     // 方法
     loadConversations,
     createConversation,
@@ -381,6 +430,7 @@ export function ChatProvider({ children }) {
     sendMessage,
     clearError,
     updateSelectedModels,
+    updateDefaultSystemPrompt,
     loadMessages
   };
 

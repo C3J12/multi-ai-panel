@@ -34,9 +34,15 @@ function setSSEHeaders(res) {
 /**
  * 构建 OpenAI messages 数组
  * 从数据库获取对话历史，转换为 messages 格式
+ * 如果提供了 systemPrompt，则在数组首位插入 system message
  */
-function buildMessagesArray(messages) {
+function buildMessagesArray(messages, systemPrompt = null) {
   const result = [];
+  
+  // 如果有系统提示词，放在最前面
+  if (systemPrompt && systemPrompt.trim()) {
+    result.push({ role: 'system', content: systemPrompt.trim() });
+  }
   
   for (const msg of messages) {
     if (msg.role === 'user') {
@@ -94,7 +100,7 @@ router.post('/', async (req, res) => {
     
     // 3. 构建 messages 数组（最近 20 条消息以节省 token）
     const recentMessages = allMessages.slice(-40); // 最多 20 轮对话（每轮2条消息）
-    const messagesForAI = buildMessagesArray(recentMessages);
+    const messagesForAI = buildMessagesArray(recentMessages, conversation.systemPrompt);
     
     // 4. 发送流式开始标记
     res.write(`data: ${JSON.stringify({ type: 'start', models: validModels })}\n\n`);

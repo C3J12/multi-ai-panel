@@ -21,3 +21,6 @@ client/dist/
 
 # SQLite 写前日志，不需要提交
 *.db-wal
+
+# SQLite 数据库文件（本地数据，不需要提交）
+*.db

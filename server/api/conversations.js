@@ -50,10 +50,10 @@ router.get('/:id', (req, res) => {
  */
 router.post('/', (req, res) => {
   try {
-    const { title } = req.body;
+    const { title, systemPrompt } = req.body;
     const id = uuidv4();
     
-    const conversation = db.createConversation(id, title || '未命名对话');
+    const conversation = db.createConversation(id, title || '未命名对话', systemPrompt || null);
     res.status(201).json({ success: true, conversation });
   } catch (err) {
     console.error('创建对话出错:', err);

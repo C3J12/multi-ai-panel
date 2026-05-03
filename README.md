@@ -13,6 +13,7 @@
 - 📱 **实时流式显示** - 答案一个字一个字显示，无需等待完整回答
 - 🛑 **随时中断** - 可以在任意时刻停止 AI 的回答
 - 🎨 **错误区分** - 余额不足/其他错误自动识别，界面自动变灰提示
+- 🧠 **System Prompt 自定义** - 为每个新对话设置固定的 AI 行为规则与角色定位
 
 ### ⚙️ 技术特性
 - 📦 **SSE 流式传输** - 高效的服务器推送事件
@@ -61,6 +62,16 @@ npm install better-sqlite3 uuid
 - ✅ localStorage 缓存选中模型列表
 - ✅ localStorage 缓存对话列表，页面刷新后恢复 UI
 
+### Phase 4 ✅ System Prompt 自定义 (已完成)
+- ✅ System Prompt 设置弹窗（可视化编辑）
+- ✅ 默认值 localStorage 持久化
+- ✅ 按对话独立存储（数据库 `systemPrompt` 字段）
+- ✅ AI 调用时自动前置 system message
+- ✅ 界面实时显示当前 System Prompt 状态
+
+**新增文件**：
+- `client/src/components/SystemPromptModal.jsx` - System Prompt 设置弹窗组件
+
 ## 🚀 快速开始
 
 ### 启动项目
@@ -85,16 +96,17 @@ DATABASE_PATH=./ai-panel.db
 
 ### 对话管理
 - `GET /api/conversations` - 获取所有对话
-- `POST /api/conversations` - 创建新对话
+- `POST /api/conversations` - 创建新对话（可选字段: `title`, `systemPrompt`）
 - `GET /api/conversations/:id` - 获取对话详情及消息
 - `PUT /api/conversations/:id` - 更新对话标题
 - `DELETE /api/conversations/:id` - 删除对话
 
 ### 多轮聊天 (SSE 流式)
-```
+```json
 POST /api/chat
 请求体: { conversationId, question, selectedModels }
 返回: 流式 SSE (start → chunks → done → end)
+说明: 自动前置当前对话的 systemPrompt 作为 system message
 ```
 
 ## 📊 数据库设计
@@ -105,6 +117,7 @@ id TEXT PRIMARY KEY
 title TEXT -- 对话标题
 createdAt TEXT -- 创建时间
 updatedAt TEXT -- 最后更新时间
+systemPrompt TEXT -- System Prompt（可选，用于 AI 行为设定）
 ```
 
 ### messages 表

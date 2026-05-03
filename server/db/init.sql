@@ -3,7 +3,8 @@ CREATE TABLE IF NOT EXISTS conversations (
   id TEXT PRIMARY KEY,
   title TEXT NOT NULL,
   createdAt TEXT NOT NULL,
-  updatedAt TEXT NOT NULL
+  updatedAt TEXT NOT NULL,
+  systemPrompt TEXT DEFAULT NULL
 );
 
 -- Messages 表：存储对话消息

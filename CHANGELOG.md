@@ -1,5 +1,29 @@
 # AI Panel 更新日志
 
+## 2026-05-04
+
+### Phase 4 - System Prompt 自定义
+
+#### 新增功能
+- 🧠 **System Prompt 设置弹窗** — 点击聊天窗口右上角 ⚙️ 齿轮图标，打开可视化编辑弹窗，自定义 AI 行为规则与角色定位。
+- 💾 **默认值持久化** — 默认 System Prompt 保存到 localStorage，刷新页面不丢失。
+- 🗂️ **按对话独立存储** — 每个对话可拥有独立的 System Prompt，存入数据库 `conversations.systemPrompt` 字段。
+- 🔄 **AI 调用自动注入** — 发送消息时，后端自动将当前对话的 System Prompt 作为 `system` 角色消息前置到 messages 数组首位。
+- 📋 **状态实时显示** — 聊天窗口标题栏下方实时显示当前对话的 System Prompt 状态（对话级/默认级/未设置）。
+
+#### 新增文件
+- `client/src/components/SystemPromptModal.jsx` — System Prompt 设置弹窗组件
+
+#### 修改文件
+- `server/db/init.sql` — conversations 表新增 `systemPrompt TEXT DEFAULT NULL`
+- `server/db/connection.js` — 数据库迁移逻辑、CRUD 更新、新增 `updateConversationSystemPrompt`
+- `server/api/conversations.js` — POST 接口接受 `systemPrompt` 请求体
+- `server/api/chat.js` — `buildMessagesArray` 支持 system message 前置
+- `client/src/context/ChatContext.jsx` — 新增 `defaultSystemPrompt`/`currentSystemPrompt` 状态管理
+- `client/src/components/ChatWindow.jsx` — 标题栏添加 ⚙️ 设置按钮 + 三段式状态提示
+
+---
+
 ## 2026-05-03
 
 ### 已完成更新
