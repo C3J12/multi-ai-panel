@@ -4,38 +4,71 @@ export const ChatContext = createContext();
 
 export function ChatProvider({ children }) {
   // 状态定义
-  const [conversations, setConversations] = useState([]);
-  const [currentConversationId, setCurrentConversationId] = useState(null);
+  const STORAGE_KEYS = {
+    selectedModels: 'ai-panel-selected-models',
+    currentConversationId: 'ai-panel-current-conversation-id',
+    conversations: 'ai-panel-conversations-cache'
+  };
+
+  const loadStoredSelectedModels = () => {
+    if (typeof window === 'undefined') return ['deepseek', 'ali-qwen'];
+    try {
+      const raw = window.localStorage.getItem(STORAGE_KEYS.selectedModels);
+      return raw ? JSON.parse(raw) : ['deepseek', 'ali-qwen'];
+    } catch {
+      return ['deepseek', 'ali-qwen'];
+    }
+  };
+
+  const loadStoredConversationId = () => {
+    if (typeof window === 'undefined') return null;
+    return window.localStorage.getItem(STORAGE_KEYS.currentConversationId);
+  };
+
+  const loadStoredConversations = () => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const raw = window.localStorage.getItem(STORAGE_KEYS.conversations);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const persistSelectedModels = (models) => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(STORAGE_KEYS.selectedModels, JSON.stringify(models));
+  };
+
+  const persistCurrentConversationId = (conversationId) => {
+    if (typeof window === 'undefined') return;
+    if (!conversationId) {
+      window.localStorage.removeItem(STORAGE_KEYS.currentConversationId);
+      return;
+    }
+    window.localStorage.setItem(STORAGE_KEYS.currentConversationId, conversationId);
+  };
+
+  const persistConversations = (list) => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage.setItem(STORAGE_KEYS.conversations, JSON.stringify(list));
+    } catch {
+      // ignore storage errors
+    }
+  };
+
+  const [conversations, setConversations] = useState(loadStoredConversations() || []);
+  const [currentConversationId, setCurrentConversationId] = useState(loadStoredConversationId());
   const [currentMessages, setCurrentMessages] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [selectedModels, setSelectedModels] = useState(['deepseek', 'ali-qwen']);
+  const [selectedModels, setSelectedModels] = useState(loadStoredSelectedModels);
   const [error, setError] = useState(null);
   const [modelErrors, setModelErrors] = useState({}); // 记录各模型的错误
 
   const API_BASE = 'http://localhost:4000/api';
 
   // ==================== 对话管理 ====================
-
-  /**
-   * 初始化：加载所有对话
-   */
-  const loadConversations = useCallback(async () => {
-    try {
-      const res = await fetch(`${API_BASE}/conversations`);
-      const data = await res.json();
-      if (data.success) {
-        setConversations(data.conversations);
-        // 如果没有当前对话，选择第一个
-        if (!currentConversationId && data.conversations.length > 0) {
-          setCurrentConversationId(data.conversations[0].id);
-          await loadMessages(data.conversations[0].id);
-        }
-      }
-    } catch (err) {
-      console.error('加载对话列表失败:', err);
-      setError('加载对话列表失败');
-    }
-  }, [currentConversationId]);
 
   /**
    * 加载某个对话的消息
@@ -54,6 +87,45 @@ export function ChatProvider({ children }) {
   }, []);
 
   /**
+   * 初始化：加载所有对话
+   */
+  const loadConversations = useCallback(async () => {
+    try {
+      const cached = loadStoredConversations();
+      if (cached && cached.length > 0) {
+        setConversations(cached);
+      }
+
+      const res = await fetch(`${API_BASE}/conversations`);
+      const data = await res.json();
+      if (data.success) {
+        setConversations(data.conversations);
+        persistConversations(data.conversations);
+
+        // 尝试恢复本地保存的当前对话
+        const storedId = loadStoredConversationId();
+        const matched = data.conversations.find(conv => conv.id === storedId);
+        if (matched) {
+          setCurrentConversationId(matched.id);
+          persistCurrentConversationId(matched.id);
+          await loadMessages(matched.id);
+          return;
+        }
+
+        if (data.conversations.length > 0) {
+          const fallbackId = data.conversations[0].id;
+          setCurrentConversationId(fallbackId);
+          persistCurrentConversationId(fallbackId);
+          await loadMessages(fallbackId);
+        }
+      }
+    } catch (err) {
+      console.error('加载对话列表失败:', err);
+      setError('加载对话列表失败');
+    }
+  }, [currentConversationId, loadMessages]);
+
+  /**
    * 创建新对话
    */
   const createConversation = useCallback(async (title = '新对话') => {
@@ -66,8 +138,13 @@ export function ChatProvider({ children }) {
       const data = await res.json();
       if (data.success) {
         const newConv = data.conversation;
-        setConversations(prev => [newConv, ...prev]);
+        setConversations(prev => {
+          const list = [newConv, ...prev];
+          persistConversations(list);
+          return list;
+        });
         setCurrentConversationId(newConv.id);
+        persistCurrentConversationId(newConv.id);
         setCurrentMessages([]);
         setModelErrors({});
         return newConv;
@@ -88,15 +165,21 @@ export function ChatProvider({ children }) {
       });
       const data = await res.json();
       if (data.success) {
-        setConversations(prev => prev.filter(c => c.id !== convId));
+        setConversations(prev => {
+          const updated = prev.filter(c => c.id !== convId);
+          persistConversations(updated);
+          return updated;
+        });
         // 如果删除的是当前对话，切换到第一个
         if (convId === currentConversationId) {
           const remaining = conversations.filter(c => c.id !== convId);
           if (remaining.length > 0) {
             setCurrentConversationId(remaining[0].id);
+            persistCurrentConversationId(remaining[0].id);
             await loadMessages(remaining[0].id);
           } else {
             setCurrentConversationId(null);
+            persistCurrentConversationId(null);
             setCurrentMessages([]);
           }
         }
@@ -112,6 +195,7 @@ export function ChatProvider({ children }) {
    */
   const switchConversation = useCallback(async (convId) => {
     setCurrentConversationId(convId);
+    persistCurrentConversationId(convId);
     setModelErrors({});
     await loadMessages(convId);
   }, [loadMessages]);
@@ -128,9 +212,11 @@ export function ChatProvider({ children }) {
       });
       const data = await res.json();
       if (data.success) {
-        setConversations(prev => 
-          prev.map(c => c.id === convId ? data.conversation : c)
-        );
+        setConversations(prev => {
+          const updated = prev.map(c => c.id === convId ? data.conversation : c);
+          persistConversations(updated);
+          return updated;
+        });
       }
     } catch (err) {
       console.error('更新标题失败:', err);
@@ -273,6 +359,7 @@ export function ChatProvider({ children }) {
    */
   const updateSelectedModels = useCallback((models) => {
     setSelectedModels(models);
+    persistSelectedModels(models);
   }, []);
 
   // 提供值

@@ -30,6 +30,11 @@
 - 重构 App 入口：`client/src/App.jsx`
 - 前端构建验证通过：`npm --prefix client run build`
 
+#### Phase 3 - 前端本地持久化
+- 实现 localStorage 缓存当前对话 ID
+- 实现 localStorage 缓存选中模型设置
+- 实现 localStorage 缓存对话列表，刷新页面后恢复 UI
+
 ### 运行说明
 
 1. 后端启动
