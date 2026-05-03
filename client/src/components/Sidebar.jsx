@@ -1,15 +1,37 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useChat } from '../hooks/useChat';
 
 export function Sidebar() {
   const {
     conversations,
     currentConversationId,
+    currentMessages,
     createConversation,
     switchConversation,
     deleteConversation,
     updateConversationTitle
   } = useChat();
+
+  const questionList = useMemo(() => {
+    const list = [];
+    let lastUser = null;
+
+    currentMessages?.forEach(msg => {
+      if (msg.role === 'user') {
+        lastUser = {
+          id: msg.id,
+          content: msg.content,
+          timestamp: msg.timestamp,
+          targetAnswerIds: []
+        };
+        list.push(lastUser);
+      } else if (msg.role === 'assistant' && lastUser) {
+        lastUser.targetAnswerIds.push(`answer-${msg.id}`);
+      }
+    });
+
+    return list;
+  }, [currentMessages]);
 
   const [editingId, setEditingId] = useState(null);
   const [editingTitle, setEditingTitle] = useState('');
@@ -61,62 +83,102 @@ export function Sidebar() {
             还没有对话，点击上面创建一个吧
           </div>
         ) : (
-          <div className="space-y-1 p-2">
-            {conversations.map(conv => (
-              <div
-                key={conv.id}
-                onClick={() => switchConversation(conv.id)}
-                className={`p-3 rounded-lg cursor-pointer transition group ${
-                  currentConversationId === conv.id
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-white hover:bg-gray-50 text-gray-800'
-                }`}
-              >
-                {editingId === conv.id ? (
-                  <input
-                    type="text"
-                    value={editingTitle}
-                    onChange={e => setEditingTitle(e.target.value)}
-                    onBlur={() => saveTitle(conv.id)}
-                    onKeyDown={e => {
-                      if (e.key === 'Enter') saveTitle(conv.id);
-                      if (e.key === 'Escape') setEditingId(null);
-                    }}
-                    onClick={e => e.stopPropagation()}
-                    autoFocus
-                    className="w-full px-2 py-1 bg-white text-gray-800 rounded border border-gray-300 text-sm"
-                  />
+          <div className="space-y-4 p-2">
+            <div className="space-y-1">
+              {conversations.map(conv => (
+                <div
+                  key={conv.id}
+                  onClick={() => switchConversation(conv.id)}
+                  className={`p-3 rounded-lg cursor-pointer transition group ${
+                    currentConversationId === conv.id
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-white hover:bg-gray-50 text-gray-800'
+                  }`}
+                >
+                  {editingId === conv.id ? (
+                    <input
+                      type="text"
+                      value={editingTitle}
+                      onChange={e => setEditingTitle(e.target.value)}
+                      onBlur={() => saveTitle(conv.id)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') saveTitle(conv.id);
+                        if (e.key === 'Escape') setEditingId(null);
+                      }}
+                      onClick={e => e.stopPropagation()}
+                      autoFocus
+                      className="w-full px-2 py-1 bg-white text-gray-800 rounded border border-gray-300 text-sm"
+                    />
+                  ) : (
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{conv.title}</p>
+                        <p className="text-xs opacity-60">
+                          {new Date(conv.updatedAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition">
+                        <button
+                          onClick={e => {
+                            e.stopPropagation();
+                            startEdit(conv.id, conv.title);
+                          }}
+                          className="p-1 hover:bg-gray-200 rounded"
+                          title="编辑"
+                        >
+                          ✏️
+                        </button>
+                        <button
+                          onClick={e => handleDelete(conv.id, e)}
+                          className="p-1 hover:bg-red-200 rounded"
+                          title="删除"
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {currentConversationId && (
+              <div className="rounded-2xl border border-gray-200 bg-white p-3 shadow-sm">
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <p className="text-sm font-semibold">问题历史</p>
+                    <p className="text-xs text-gray-500">按提问顺序排列，点击可定位到对应回答</p>
+                  </div>
+                </div>
+                {questionList.length === 0 ? (
+                  <div className="text-sm text-gray-500">当前对话暂无提问，开始输入你的第一个问题。</div>
                 ) : (
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{conv.title}</p>
-                      <p className="text-xs opacity-60">
-                        {new Date(conv.updatedAt).toLocaleDateString()}
-                      </p>
-                    </div>
-                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition">
+                  <div className="space-y-2 max-h-72 overflow-y-auto">
+                    {questionList.map(question => (
                       <button
-                        onClick={e => {
-                          e.stopPropagation();
-                          startEdit(conv.id, conv.title);
+                        key={question.id}
+                        onClick={() => {
+                          const firstTargetId = question.targetAnswerIds && question.targetAnswerIds[0];
+                          if (firstTargetId) {
+                            const target = document.getElementById(firstTargetId);
+                            target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                          }
                         }}
-                        className="p-1 hover:bg-gray-200 rounded"
-                        title="编辑"
+                        className="w-full text-left rounded-xl border border-gray-200 px-3 py-2 bg-slate-50 hover:bg-slate-100 transition"
                       >
-                        ✏️
+                        <p className="text-sm font-medium line-clamp-2 text-gray-800">
+                          {question.content}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {new Date(question.timestamp).toLocaleTimeString('zh-CN')}
+                          {question.targetAnswerIds.length > 0 ? ` · ${question.targetAnswerIds.length} 个回答` : ' · 无匹配回答'}
+                        </p>
                       </button>
-                      <button
-                        onClick={e => handleDelete(conv.id, e)}
-                        className="p-1 hover:bg-red-200 rounded"
-                        title="删除"
-                      >
-                        🗑️
-                      </button>
-                    </div>
+                    ))}
                   </div>
                 )}
               </div>
-            ))}
+            )}
           </div>
         )}
       </div>
