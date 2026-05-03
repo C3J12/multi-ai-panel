@@ -55,8 +55,19 @@ export function MessageList() {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 bg-white">
-      <div className="grid gap-4 lg:grid-cols-2">
+    <div className="flex-1 overflow-y-auto p-6 bg-white flex flex-col">
+      {/* 共享问题区域 - 跨越两个卡片 */}
+      {latestQuestion && (
+        <div className="mb-6">
+          <div className="rounded-2xl border border-blue-300 bg-blue-50 p-5 text-sm text-blue-900 shadow-sm">
+            <div className="text-xs uppercase opacity-70 font-semibold mb-2">📝 最新问题</div>
+            <div className="whitespace-pre-wrap break-words text-base leading-relaxed">{latestQuestion}</div>
+          </div>
+        </div>
+      )}
+
+      {/* 模型卡片网格 - 回答区域对齐 */}
+      <div className="flex-1 grid gap-4 lg:grid-cols-2 auto-rows-max">
         {selectedModels.map(modelId => {
           const modelConfig = MODEL_CONFIGS[modelId] || {
             name: modelId,
@@ -90,16 +101,9 @@ export function MessageList() {
                 )}
               </div>
 
-              <div className="flex-1 overflow-y-auto p-5 space-y-4">
-                {latestQuestion && (
-                  <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
-                    <div className="text-xs uppercase opacity-70 mb-2">最新问题</div>
-                    <div className="whitespace-pre-wrap break-words">{latestQuestion}</div>
-                  </div>
-                )}
-
+              <div className="p-5 space-y-4">
                 {history.length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-5 text-sm text-gray-500">
+                  <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-5 text-sm text-gray-500 text-center">
                     {hasError ? '该模型当前返回失败，请查看错误提示。' : '该模型还没有回答，提问后将会在这里显示结果。'}
                   </div>
                 ) : (
