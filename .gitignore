@@ -24,3 +24,6 @@ client/dist/
 
 # SQLite 数据库文件（本地数据，不需要提交）
 *.db
+
+#下次升级的方向
+next.md
